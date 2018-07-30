@@ -73,7 +73,64 @@ The driver is implemented as an I2C adapter driver and will be upstreemed.
 
 ## Enable camera
 
-The Linaro release is configured with no camera and users with camera are expected to configure the DTS file accordingly. Please check commit "dts: Disable camera sensors in dtsi" in the kernel. This patch assumes that two OV5645 camera sensors are connected on the board (one per CSI2 channel) and disables them. To enable a camera please revert (part of) this patch.
+The Linaro release is configured with no camera and users with camera are expected to update the device tree to enable a camera. This can be done by applying a device tree overlay over the base device tree. This adds the required nodes and properties for the camera. Example device tree overlay source and binary files are provided in Linaro kernel in arch/arm64/boot/dts/qcom/overlays/. Should any changes be needed the device tree overlays are rebuilt when the kernel is rebuilt. There are several approaches to update the device tree.
+
+### Enable camera by updating the device tree in a bootimage
+
+This approach is useful when avoiding building the kernel. The kernel source (or at least the device tree overlays from arch/arm64/boot/dts/qcom/overlays/) is still needed.
+
+Get needed tools (dbootimg, dtbtool):
+
+    git clone https://github.com/96boards/dt-update.git
+
+Build needed tools:
+
+    cd dt-update/
+    make
+
+Install needed tools:
+
+    sudo make install
+
+Update the Dragonboard bootimage
+- extract the device tree binary from the bootimage;
+- merge with the camera device tree overlay binary;
+- update the device tree binary in the bootimage:
+
+````
+    dbootimg boot-db410c.img -x dtb | dtbtool --merge db410c-stm32-rear-ov5645.dtb | dbootimg boot-db410c.img -u dtb
+````
+
+Flash or boot the new bootimage.
+
+### Enable camera by updating the device tree before creating a bootimage
+
+This approach can be useful when the kernel is being rebuilt. The device tree binary is updated and then used to create the new bootimage.
+
+Get needed tools. dtbtool or fdtoverlay can be used. For dtbtool check the previous point. For fdtoverlay:
+
+Clone:
+
+    git clone https://git.kernel.org/pub/scm/utils/dtc/dtc.git
+
+Build:
+
+    cd dtc/
+    make
+
+Add fdtoverlay to your $PATH (or use full path in next command).
+
+After building the kernel and before creating the new bootimage, update the newly built device tree binary.
+
+For dtbtool:
+
+    dtbtool arch/arm64/boot/dts/qcom/apq8016-sbc.dtb --merge arch/arm64/boot/dts/qcom/overlays/db410c-stm32-rear-ov5645.dtb -o arch/arm64/boot/dts/qcom/apq8016-sbc.dtb
+
+For fdtoverlay:
+
+    fdtoverlay -i arch/arm64/boot/dts/qcom/apq8016-sbc.dtb arch/arm64/boot/dts/qcom/overlays/db410c-stm32-rear-ov5645.dtb -o arch/arm64/boot/dts/qcom/apq8016-sbc.dtb
+
+Append the device tree binary to the kernel binary and build the bootimage the usual way.
 
 ## Basic usage
 
